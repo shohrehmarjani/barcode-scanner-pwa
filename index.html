@@ -2,7 +2,7 @@
 <html lang="fa">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>📦 اسکنر بارکد پایدار</title>
   <style>
     body { font-family: sans-serif; background: #f9f9f9; padding: 1em; direction: rtl; }
@@ -29,12 +29,14 @@
 
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
-    let codeReader = new ZXing.BrowserMultiFormatReader();
+    const { BrowserMultiFormatReader, RGBLuminanceSource, BinaryBitmap, HybridBinarizer, NotFoundException } = ZXing;
+    let codeReader = new BrowserMultiFormatReader();
     const preview = document.getElementById('preview');
     const output = document.getElementById('output');
     const cameraSelect = document.getElementById('cameraSelect');
     const logBox = document.getElementById('log');
     let scanInterval;
+    let stream;
 
     function log(msg) {
       const time = new Date().toLocaleTimeString();
@@ -65,14 +67,16 @@
         return;
       }
 
-      // متوقف کردن قبلی
       if (scanInterval) {
         clearInterval(scanInterval);
         scanInterval = null;
       }
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        stream = await navigator.mediaDevices.getUserMedia({
           video: { deviceId: { exact: selectedDeviceId } },
           audio: false
         });
@@ -91,21 +95,24 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(bitmap, 0, 0);
 
-            const result = await codeReader.decodeFromCanvas(canvas);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const luminanceSource = new RGBLuminanceSource(imageData.data, canvas.width, canvas.height);
+            const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
+            const result = codeReader.decode(binaryBitmap);
+
             if (result) {
-              const code = result.text.trim();
+              const code = result.getText().trim();
               if (!output.value.includes(code)) {
                 output.value += code + "\n";
                 log('✅ بارکد شناسایی شد: ' + code);
               }
             }
           } catch (e) {
-            // فقط خطاهایی غیر از NotFound رو نشون بده
-            if (!(e instanceof ZXing.NotFoundException)) {
+            if (!(e instanceof NotFoundException)) {
               log('⚠️ خطا در خواندن فریم: ' + e.message);
             }
           }
-        }, 1500); // هر ۱.۵ ثانیه یکبار
+        }, 1500);
 
       } catch (e) {
         log('❌ خطا در دسترسی به دوربین: ' + e.message);
