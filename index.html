@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#2d2d2d">
-  <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#2d2d2d" />
+  <link rel="manifest" href="manifest.json" />
   <title>Barcode Scanner PWA</title>
   <style>
     body { font-family: sans-serif; padding: 1em; background: #f4f4f4; }
@@ -21,32 +21,39 @@
 
   <script src="https://unpkg.com/@zxing/browser@latest"></script>
   <script>
-    const output = document.getElementById('output');
-    const codeReader = new ZXing.BrowserBarcodeReader();
+    document.addEventListener('DOMContentLoaded', () => {
+      const output = document.getElementById('output');
+      const codeReader = new ZXing.BrowserBarcodeReader();
 
-    async function startScanner() {
-      try {
-        const selectedDeviceId = (await codeReader.getVideoInputDevices())[0].deviceId;
-        await codeReader.decodeFromVideoDevice(selectedDeviceId, 'preview', (result, err) => {
-          if (result) {
-            const code = result.text.trim();
-            if (!output.value.includes(code)) {
-              output.value += code + "\n";
-            }
+      window.startScanner = async function() {
+        try {
+          const devices = await codeReader.getVideoInputDevices();
+          if (devices.length === 0) {
+            alert("دوربینی پیدا نشد.");
+            return;
           }
-        });
-      } catch (e) {
-        alert("خطا در دسترسی به دوربین یا اسکن: " + e);
-      }
-    }
+          const selectedDeviceId = devices[0].deviceId;
+          await codeReader.decodeFromVideoDevice(selectedDeviceId, 'preview', (result, err) => {
+            if (result) {
+              const code = result.text.trim();
+              if (!output.value.includes(code)) {
+                output.value += code + "\n";
+              }
+            }
+          });
+        } catch (e) {
+          alert("خطا در دسترسی به دوربین یا اسکن: " + e);
+        }
+      };
 
-    function downloadText() {
-      const blob = new Blob([output.value], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'barcodes.txt';
-      a.click();
-    }
+      window.downloadText = function() {
+        const blob = new Blob([output.value], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'barcodes.txt';
+        a.click();
+      };
+    });
   </script>
 </body>
 </html>
