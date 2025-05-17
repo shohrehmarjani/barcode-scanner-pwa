@@ -3,24 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>اسکنر بارکد ساده</title>
+  <title>🛠️ اسکنر بارکد با لاگ‌گیری</title>
   <style>
-    body { font-family: sans-serif; padding: 1em; background: #f4f4f4; direction: rtl; }
-    select, textarea, button { width: 100%; margin-top: 1em; padding: 0.5em; font-size: 16px; }
-    textarea { height: 150px; direction: ltr; }
+    body { font-family: sans-serif; padding: 1em; background: #f0f0f0; direction: rtl; }
+    textarea, select, button { width: 100%; margin-top: 1em; padding: 0.6em; font-size: 16px; }
+    textarea { height: 120px; direction: ltr; }
     video { width: 100%; background: black; margin-top: 1em; }
+    #log { background: #222; color: #0f0; font-family: monospace; height: 200px; }
   </style>
 </head>
 <body>
-  <h2>📦 اسکنر بارکد</h2>
+  <h2>📦 اسکنر بارکد + 🐞 لاگ خطا</h2>
 
-  <label for="cameraSelect">📷 انتخاب دوربین:</label>
+  <label>📷 انتخاب دوربین:</label>
   <select id="cameraSelect"></select>
 
   <button onclick="startScanner()">🎥 شروع اسکن</button>
   <video id="preview" autoplay></video>
-  <textarea id="output" readonly placeholder="نتایج اسکن..."></textarea>
-  <button onclick="downloadText()">⬇️ دانلود فایل</button>
+
+  <label>📋 خروجی اسکن:</label>
+  <textarea id="output" readonly></textarea>
+
+  <label>📜 لاگ‌ها:</label>
+  <textarea id="log" readonly></textarea>
 
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
@@ -28,11 +33,19 @@
     const preview = document.getElementById('preview');
     const output = document.getElementById('output');
     const cameraSelect = document.getElementById('cameraSelect');
+    const logBox = document.getElementById('log');
+
+    function log(msg) {
+      const time = new Date().toLocaleTimeString();
+      logBox.value += `[${time}] ${msg}\n`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
 
     document.addEventListener('DOMContentLoaded', async () => {
-      codeReader = new ZXing.BrowserBarcodeReader();
-
       try {
+        codeReader = new ZXing.BrowserBarcodeReader();
+        log('✅ ZXing بارکدخوان آماده است');
+
         const devices = await codeReader.getVideoInputDevices();
         devices.forEach((device, i) => {
           const option = document.createElement('option');
@@ -40,38 +53,36 @@
           option.text = device.label || `دوربین ${i + 1}`;
           cameraSelect.appendChild(option);
         });
+        log(`📷 ${devices.length} دوربین پیدا شد`);
       } catch (err) {
-        alert('❌ خطا در دریافت دوربین‌ها: ' + err);
+        log('❌ خطا در دریافت دوربین‌ها: ' + err.message);
       }
     });
 
     async function startScanner() {
       const selectedDeviceId = cameraSelect.value;
       if (!selectedDeviceId) {
-        alert('لطفاً دوربین را انتخاب کنید.');
+        log('⚠️ لطفاً یک دوربین انتخاب کنید.');
         return;
       }
 
       try {
+        log('🚀 شروع اسکن...');
         await codeReader.decodeFromVideoDevice(selectedDeviceId, preview, (result, err) => {
           if (result) {
             const code = result.text.trim();
+            log('✅ بارکد شناسایی شد: ' + code);
             if (!output.value.includes(code)) {
               output.value += code + "\n";
             }
           }
+          if (err && !(err instanceof ZXing.NotFoundException)) {
+            log('⚠️ خطای لحظه‌ای: ' + err.message);
+          }
         });
       } catch (e) {
-        alert('❌ خطا در اسکن: ' + e);
+        log('❌ خطا در اسکن: ' + e.message);
       }
-    }
-
-    function downloadText() {
-      const blob = new Blob([output.value], { type: 'text/plain' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'barcodes.txt';
-      a.click();
     }
   </script>
 </body>
