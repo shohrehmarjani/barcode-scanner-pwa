@@ -3,23 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🛠️ اسکنر بارکد با لاگ‌گیری</title>
+  <title>📦 اسکنر بارکد پایدار</title>
   <style>
-    body { font-family: sans-serif; padding: 1em; background: #f0f0f0; direction: rtl; }
-    textarea, select, button { width: 100%; margin-top: 1em; padding: 0.6em; font-size: 16px; }
-    textarea { height: 120px; direction: ltr; }
-    video { width: 100%; background: black; margin-top: 1em; }
-    #log { background: #222; color: #0f0; font-family: monospace; height: 200px; }
+    body { font-family: sans-serif; background: #f9f9f9; padding: 1em; direction: rtl; }
+    video { width: 300px; height: 200px; background: black; margin: auto; display: block; border: 3px solid #333; border-radius: 10px; }
+    button, select, textarea { width: 100%; margin-top: 1em; padding: 0.8em; font-size: 16px; }
+    textarea { height: 100px; direction: ltr; }
+    #log { background: #111; color: #0f0; font-family: monospace; height: 160px; }
   </style>
 </head>
 <body>
-  <h2>📦 اسکنر بارکد + 🐞 لاگ خطا</h2>
+  <h2>🎯 اسکنر بارکد (نسخه پایدار)</h2>
 
   <label>📷 انتخاب دوربین:</label>
   <select id="cameraSelect"></select>
 
   <button onclick="startScanner()">🎥 شروع اسکن</button>
-  <video id="preview" autoplay></video>
+  <video id="preview" autoplay muted playsinline></video>
 
   <label>📋 خروجی اسکن:</label>
   <textarea id="output" readonly></textarea>
@@ -29,11 +29,12 @@
 
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
-    let codeReader;
+    let codeReader = new ZXing.BrowserMultiFormatReader();
     const preview = document.getElementById('preview');
     const output = document.getElementById('output');
     const cameraSelect = document.getElementById('cameraSelect');
     const logBox = document.getElementById('log');
+    let scanInterval;
 
     function log(msg) {
       const time = new Date().toLocaleTimeString();
@@ -43,19 +44,17 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
       try {
-        codeReader = new ZXing.BrowserBarcodeReader();
-        log('✅ ZXing بارکدخوان آماده است');
-
-        const devices = await codeReader.getVideoInputDevices();
-        devices.forEach((device, i) => {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        videoDevices.forEach((device, i) => {
           const option = document.createElement('option');
           option.value = device.deviceId;
           option.text = device.label || `دوربین ${i + 1}`;
           cameraSelect.appendChild(option);
         });
-        log(`📷 ${devices.length} دوربین پیدا شد`);
+        log(`🎥 ${videoDevices.length} دوربین پیدا شد`);
       } catch (err) {
-        log('❌ خطا در دریافت دوربین‌ها: ' + err.message);
+        log('❌ خطا در دریافت لیست دوربین‌ها: ' + err.message);
       }
     });
 
@@ -66,22 +65,50 @@
         return;
       }
 
+      // متوقف کردن قبلی
+      if (scanInterval) {
+        clearInterval(scanInterval);
+        scanInterval = null;
+      }
+
       try {
-        log('🚀 شروع اسکن...');
-        await codeReader.decodeFromVideoDevice(selectedDeviceId, preview, (result, err) => {
-          if (result) {
-            const code = result.text.trim();
-            log('✅ بارکد شناسایی شد: ' + code);
-            if (!output.value.includes(code)) {
-              output.value += code + "\n";
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: selectedDeviceId } },
+          audio: false
+        });
+        preview.srcObject = stream;
+        log('📷 دوربین فعال شد');
+
+        const track = stream.getVideoTracks()[0];
+        const imageCapture = new ImageCapture(track);
+
+        scanInterval = setInterval(async () => {
+          try {
+            const bitmap = await imageCapture.grabFrame();
+            const canvas = document.createElement('canvas');
+            canvas.width = bitmap.width;
+            canvas.height = bitmap.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(bitmap, 0, 0);
+
+            const result = await codeReader.decodeFromCanvas(canvas);
+            if (result) {
+              const code = result.text.trim();
+              if (!output.value.includes(code)) {
+                output.value += code + "\n";
+                log('✅ بارکد شناسایی شد: ' + code);
+              }
+            }
+          } catch (e) {
+            // فقط خطاهایی غیر از NotFound رو نشون بده
+            if (!(e instanceof ZXing.NotFoundException)) {
+              log('⚠️ خطا در خواندن فریم: ' + e.message);
             }
           }
-          if (err && !(err instanceof ZXing.NotFoundException)) {
-            log('⚠️ خطای لحظه‌ای: ' + err.message);
-          }
-        });
+        }, 1500); // هر ۱.۵ ثانیه یکبار
+
       } catch (e) {
-        log('❌ خطا در اسکن: ' + e.message);
+        log('❌ خطا در دسترسی به دوربین: ' + e.message);
       }
     }
   </script>
