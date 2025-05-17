@@ -83,19 +83,22 @@
         preview.srcObject = stream;
         log('📷 دوربین فعال شد');
 
-        const track = stream.getVideoTracks()[0];
-        const imageCapture = new ImageCapture(track);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
 
-        scanInterval = setInterval(async () => {
+        scanInterval = setInterval(() => {
           try {
-            const bitmap = await imageCapture.grabFrame();
-            const canvas = document.createElement('canvas');
-            canvas.width = bitmap.width;
-            canvas.height = bitmap.height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(bitmap, 0, 0);
+            // تنظیم سایز canvas برابر با ویدئو
+            canvas.width = preview.videoWidth;
+            canvas.height = preview.videoHeight;
 
+            // کشیدن فریم فعلی ویدئو روی canvas
+            ctx.drawImage(preview, 0, 0, canvas.width, canvas.height);
+
+            // گرفتن داده پیکسلی
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            // تبدیل به luminance source و اسکن
             const luminanceSource = new RGBLuminanceSource(imageData.data, canvas.width, canvas.height);
             const binaryBitmap = new BinaryBitmap(new HybridBinarizer(luminanceSource));
             const result = codeReader.decode(binaryBitmap);
@@ -112,7 +115,7 @@
               log('⚠️ خطا در خواندن فریم: ' + e.message);
             }
           }
-        }, 15000);
+        }, 1500);
 
       } catch (e) {
         log('❌ خطا در دسترسی به دوربین: ' + e.message);
