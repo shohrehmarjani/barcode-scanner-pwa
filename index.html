@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#2d2d2d" />
-  <title>Barcode Scanner PWA</title>
+  <title>اسکنر بارکد</title>
   <style>
-    body { font-family: sans-serif; padding: 1em; background: #f4f4f4; direction: rtl; text-align: right; }
+    body { font-family: sans-serif; padding: 1em; background: #f4f4f4; direction: rtl; }
     textarea { width: 100%; height: 200px; margin-top: 1em; direction: ltr; }
     button { margin-top: 0.5em; display: block; width: 100%; padding: 1em; font-size: 16px; }
-    video { width: 100%; height: auto; background: black; margin-top: 1em; }
+    video { width: 100%; background: black; margin-top: 1em; }
   </style>
 </head>
 <body>
@@ -19,7 +18,8 @@
   <textarea id="output" readonly placeholder="نتایج اسکن در اینجا نمایش داده می‌شود..."></textarea>
   <button onclick="downloadText()">⬇️ دانلود فایل متنی</button>
 
-  <script src="https://unpkg.com/@zxing/browser@latest"></script>
+  <!-- ✅ نسخه صحیح ZXing -->
+  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const output = document.getElementById('output');
