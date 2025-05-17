@@ -6,53 +6,55 @@
   <title>اسکنر بارکد</title>
   <style>
     body { font-family: sans-serif; padding: 1em; background: #f4f4f4; direction: rtl; }
-    textarea { width: 100%; height: 200px; margin-top: 1em; direction: ltr; }
-    button { margin-top: 0.5em; display: block; width: 100%; padding: 1em; font-size: 16px; }
+    select, textarea, button { width: 100%; margin-top: 1em; padding: 0.5em; font-size: 16px; }
+    textarea { height: 150px; direction: ltr; }
     video { width: 100%; background: black; margin-top: 1em; }
   </style>
 </head>
 <body>
   <h2>📦 اسکنر بارکد (PWA)</h2>
+
+  <!-- منوی انتخاب دوربین -->
+  <label for="cameraSelect">📷 انتخاب دوربین:</label>
+  <select id="cameraSelect"></select>
+
   <button onclick="startScanner()">🎥 شروع اسکن</button>
   <video id="preview" autoplay></video>
   <textarea id="output" readonly placeholder="نتایج اسکن در اینجا نمایش داده می‌شود..."></textarea>
   <button onclick="downloadText()">⬇️ دانلود فایل متنی</button>
 
-  <!-- ✅ نسخه صحیح ZXing -->
+  <!-- ZXing Script -->
   <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
       const output = document.getElementById('output');
       const preview = document.getElementById('preview');
-      let codeReader;
+      const cameraSelect = document.getElementById('cameraSelect');
+      let codeReader = new ZXing.BrowserBarcodeReader();
 
-      window.startScanner = async () => {
-        try {
-          if (!codeReader) {
-            codeReader = new ZXing.BrowserBarcodeReader();
-          }
+      // 📌 گرفتن لیست دوربین‌ها
+      const devices = await codeReader.getVideoInputDevices();
+      devices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.text = device.label || `دوربین ${index + 1}`;
+        cameraSelect.appendChild(option);
+      });
 
-          const devices = await codeReader.getVideoInputDevices();
-          if (devices.length === 0) {
-            alert("هیچ دوربینی پیدا نشد.");
-            return;
-          }
-
-          const selectedDeviceId = devices[0].deviceId;
-
-          codeReader.decodeFromVideoDevice(selectedDeviceId, preview, (result, err) => {
-            if (result) {
-              const code = result.text.trim();
-              if (!output.value.includes(code)) {
-                output.value += code + "\n";
-              }
+      // 🎥 شروع اسکن
+      window.startScanner = () => {
+        const selectedDeviceId = cameraSelect.value;
+        codeReader.decodeFromVideoDevice(selectedDeviceId, preview, (result, err) => {
+          if (result) {
+            const code = result.text.trim();
+            if (!output.value.includes(code)) {
+              output.value += code + "\n";
             }
-          });
-        } catch (e) {
-          alert("خطا در دسترسی به دوربین یا اسکن: " + e);
-        }
+          }
+        });
       };
 
+      // 📁 دانلود فایل
       window.downloadText = () => {
         const blob = new Blob([output.value], { type: 'text/plain' });
         const a = document.createElement('a');
